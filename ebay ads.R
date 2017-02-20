@@ -39,6 +39,14 @@ p4 <- ggplot(aes(x="price", y=price), data = mydata) +
   geom_boxplot() +
   ylim(0, quantile(mydata$price, 0.90))
 
+# From the graph, it is reasonable for us to conclude that price greater than 15000 can be considered as outliers. 
+# Therefore, we can use 0-0.9 range for the clean data.
+mydata <- subset(mydata, price < quantile(mydata$price, 0.90))
+
+# powerPS also has outliers, and we need to convert it from factor to numeric data
+mydata$powerPS = as.numeric(levels(mydata$powerPS)[mydata$powerPS])
+summary(mydata$powerPS)
+
 # need to clean the dataset and convert the date format 
 mydata$dateCrawled <- ymd(mydata$dateCrawled) 
 mydata$dateCreated <- ymd_hms(mydata$dateCreated)
