@@ -21,7 +21,7 @@ quantile(mydata$price, 0.1)
 quantile(mydata$price, 0.90)
 
 ggplot(aes(x=vehicleType, y=price), data = mydata) + 
-  geom_boxplot() +
+  geom_boxplot() +w
   ylim(quantile(mydata$price, 0.05), quantile(mydata$price, 0.95))
 
 
@@ -58,40 +58,50 @@ ggplot(aes(x=vehicleType, y=powerPS), data = mydata) +
 # select 0.05-0.95 for throwing out outliers
 mydata <- subset(mydata, quantile(mydata$powerPS, 0.05) < powerPS & powerPS < quantile(mydata$powerPS, 0.95))
 
+# take a look at main categorical variables and remove blank/na values
+summary(mydata$vehicleType)
+mydata = mydata[!(is.na(mydata$vehicleType) | mydata$vehicleType==""), ]
+
+
+summary(mydata$gearbox)
+mydata = mydata[!(is.na(mydata$gearbox) | mydata$gearbox==""), ]
+
+summary(mydata$fuelType)
+mydata = mydata[!(is.na(mydata$fuelType) | mydata$fuelType==""), ]
+
+summary(mydata$offerType)
+
+summary(mydata$model)
+
 # need to clean the dataset and convert the date format 
-mydata$dateCrawled <- ymd(mydata$dateCrawled) 
-mydata$dateCreated <- ymd_hms(mydata$dateCreated)
-mydata$lastSeen <- ymd_hms(mydata$lastSeen)
 
+# mydata$dateCrawled <- ymd(mydata$dateCrawled) 
+# mydata$dateCreated <- ymd_hms(mydata$dateCreated)
+# mydata$lastSeen <- ymd_hms(mydata$lastSeen)
 
+# look at several simple plots to check if there is any relationship between variables 
+plot(mydata$vehicleType)
+hist(mydata$powerPS)
 
-class(mydata)
-newdata = mydata[1:1000,]
-summary(mydata)
-
-ls()
-names(mydata)
-plot(newdata$price~newdata$kilometer)
+plot(mydata$price~mydata$kilometer)
 plot(mydata$price~mydata$powerPS)
-summary(mydata$price)
-pie(table(mydata$notRepairedDamage))
-hist(newdata$price)
-str(mydata$price)
-summary(newdata$price)
-pie(table(mydata$offerType))
-pie(table(mydata$vehicleType))
-pie(table(mydata$abtest))
-pie(table(newdata$abtest))
-plot(newdata$price~newdata$monthOfRegistration)
-plot(newdata$price~newdata$kilometer,type="l")
-plot(newdata$price~newdata$powerPS)
-new1=newdata[order(newdata$powerPS),]
-str(newdata$powerPS)
-is.numeric(newdata$kilometer)
-newdata$powerPS = as.numeric(newdata$powerPS)
-plot(newdata$price~newdata$powerPS)
-pie(table(mydata$vehicleType))
-pie(table(mydata$brand))
-pie(table(mydata$fuelType))
-pie(table(mydata$gearbox))
-pie(table(mydata$notRepairedDamage))
+
+# engine power vs price
+ggplot(data = subset(mydata, !is.na(powerPS)), aes(x = powerPS, y = price)) +
+  geom_point(alpha = 1/50, color = I("#990000"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('Engine Power') +
+  ylab('Price') +
+  ggtitle('Engine Power vs. Price')
+
+# kilometer vs price 
+ggplot(data = subset(mydata, !is.na(kilometer)), aes(x = kilometer, y = price)) +
+  geom_point(alpha = 1/50, color = I("#990000"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('Engine Power') +
+  ylab('Price') +
+  ggtitle('Kilometer vs. Price')
+
+
