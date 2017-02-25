@@ -11,57 +11,43 @@ mydata <- read.csv("C:/Users/dayif/Desktop/lets do it/New Projects/Used Auto Ads
 dim(mydata)
 # use sty to get further information 
 str(mydata)
-# take a look at our main response variable price
-summary(mydata$price) # there is one NA, which means missing data point, we can simply remove it due to the large dataset volume 
-mydata = mydata[complete.cases(mydata$price),]
-summary(mydata$price)
+# throw out unnecessary variables, mostly determined by general knowledge and real-world experience
+myvars <- names(mydata) %in% c("name", "seller", "offerType", "abtest", "nrOfPictures") 
+mydata = mydata[!myvars]
+# clean the data from the strictest standard, such as the month of registration can not be any value except 1-12...
+mydata$monthOfRegistration=as.numeric(mydata$monthOfRegistration)
+mydata = subset(mydata,monthOfRegistration>=1 & monthOfRegistration<= 12)
+summary(mydata$monthOfRegistration)
+# standardlize three date-related variables:
+mydata$dateCrawled = mdy_hm(mydata$dateCrawled)
+mydata$dateCreated = mdy_hm(mydata$dateCreated)
+mydata$lastSeen = mdy_hm(mydata$lastSeen)
+str(mydata)
+# take a look at our main response variable price and remove na's
+summary(mydata$price) 
 options(scipen = 5,digits=4) # no scientific notation
-quantile(mydata$price, 0.05)
-quantile(mydata$price, 0.1)
-quantile(mydata$price, 0.90)
+mydata = mydata[complete.cases(mydata$price),]
+summary(mydata$price) # there are some outliers, however we keep them and deal with them later
 
-ggplot(aes(x=vehicleType, y=price), data = mydata) + 
-  geom_boxplot() +w
-  ylim(quantile(mydata$price, 0.05), quantile(mydata$price, 0.95))
+# take a look at engine power, convert variable type from factor to numetic 
 
-
-p1 <- ggplot(aes(x="price", y=price), data = mydata) + 
-  geom_boxplot()
-
-p2 <- ggplot(aes(x="price", y=price), data = mydata) + 
-  geom_boxplot() +
-  ylim(0, quantile(mydata$price, 0.99))
-
-p3 <- ggplot(aes(x="price", y=price), data = mydata) + 
-  geom_boxplot() +
-  ylim(0, quantile(mydata$price, 0.95))
-
-p4 <- ggplot(aes(x="price", y=price), data = mydata) + 
-  geom_boxplot() +
-  ylim(0, quantile(mydata$price, 0.90))
-
-grid.arrange(p1, p2, p3, p4, ncol = 2)
-# From the graph, it is reasonable for us to conclude that price greater than 15000 can be considered as outliers. 
 # Therefore, we can use 0-0.9 range for the clean data.
-mydata <- subset(mydata, price < quantile(mydata$price, 0.90))
+# mydata <- subset(mydata, price < quantile(mydata$price, 0.90))
 
-# powerPS also has outliers, and we need to convert it from factor to numeric data
-mydata$powerPS = as.numeric(levels(mydata$powerPS)[mydata$powerPS])
+# convert powerPS from factor to numeric data, and we will deal with outliers later
+mydata$powerPS = as.numeric(as.character(mydata$powerPS))
 summary(mydata$powerPS)
-quantile(mydata$powerPS, 0.1)
-quantile(mydata$powerPS, 0.90)
-quantile(mydata$powerPS, 0.95)
+mydata = mydata[complete.cases(mydata$powerPS),]
 
-ggplot(aes(x=vehicleType, y=powerPS), data = mydata) + 
-  geom_boxplot() +
-  ylim(quantile(mydata$powerPS, 0.05), quantile(mydata$powerPS, 0.95))
 # select 0.05-0.95 for throwing out outliers
-mydata <- subset(mydata, quantile(mydata$powerPS, 0.05) < powerPS & powerPS < quantile(mydata$powerPS, 0.95))
+# mydata <- subset(mydata, quantile(mydata$powerPS, 0.05) < powerPS & powerPS < quantile(mydata$powerPS, 0.95))
 
-# take a look at main categorical variables and remove blank/na values
+# take a look at main categorical variables and rename blank cell to "None" type
 summary(mydata$vehicleType)
-mydata = mydata[!(is.na(mydata$vehicleType) | mydata$vehicleType==""), ]
-
+mydata$vehicleType = sub("^$","None",mydata$vehicleType)
+mydata$vehicleType = as.factor(mydata$vehicleType)
+plot(mydata$vehicleType)
+#mydata = mydata[!(is.na(mydata$vehicleType) | mydata$vehicleType==""), ]
 
 summary(mydata$gearbox)
 mydata = mydata[!(is.na(mydata$gearbox) | mydata$gearbox==""), ]
@@ -70,10 +56,19 @@ summary(mydata$fuelType)
 mydata = mydata[!(is.na(mydata$fuelType) | mydata$fuelType==""), ]
 
 summary(mydata$offerType)
+mydata = mydata[!(is.na(mydata$offerType) | mydata$offerType==""), ]
 
 summary(mydata$model)
+mydata = mydata[!(is.na(mydata$model) | mydata$model==""), ]
+
+summary(mydata$brand)
+table(mydata$vehicleType,mydata$brand)
 
 # need to clean the dataset and convert the date format 
+summary(mydata$monthOfRegistration)
+mydata$monthOfRegistration=as.numeric(mydata$monthOfRegistration)
+mydata = subset(mydata,monthOfRegistration>=1 & monthOfRegistration<= 12)
+
 
 # mydata$dateCrawled <- ymd(mydata$dateCrawled) 
 # mydata$dateCreated <- ymd_hms(mydata$dateCreated)
