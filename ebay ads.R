@@ -18,6 +18,16 @@ mydata = mydata[!myvars]
 mydata$monthOfRegistration=as.numeric(mydata$monthOfRegistration)
 mydata = subset(mydata,monthOfRegistration>=1 & monthOfRegistration<= 12)
 summary(mydata$monthOfRegistration)
+# year of registration, use boxplot to analyze variable distribution, it is reasonable to eliminate any value greater than 1960 and less than 2017
+summary(mydata$yearOfRegistration)
+mydata$yearOfRegistration = as.numeric(as.character(mydata$yearOfRegistration))
+
+ggplot(aes(x=vehicleType, y=yearOfRegistration), data = mydata) + 
+  geom_boxplot() +
+  ylim(1975, 2017)
+
+mydata = subset(mydata, yearOfRegistration >= 1960 & yearOfRegistration <= 2017)
+
 # standardlize three date-related variables:
 mydata$dateCrawled = mdy_hm(mydata$dateCrawled)
 mydata$dateCreated = mdy_hm(mydata$dateCreated)
@@ -28,11 +38,6 @@ summary(mydata$price)
 options(scipen = 5,digits=4) # no scientific notation
 mydata = mydata[complete.cases(mydata$price),]
 summary(mydata$price) # there are some outliers, however we keep them and deal with them later
-
-# take a look at engine power, convert variable type from factor to numetic 
-
-# Therefore, we can use 0-0.9 range for the clean data.
-# mydata <- subset(mydata, price < quantile(mydata$price, 0.90))
 
 # convert powerPS from factor to numeric data, and we will deal with outliers later
 mydata$powerPS = as.numeric(as.character(mydata$powerPS))
@@ -49,41 +54,64 @@ mydata$vehicleType = as.factor(mydata$vehicleType)
 plot(mydata$vehicleType)
 #mydata = mydata[!(is.na(mydata$vehicleType) | mydata$vehicleType==""), ]
 
+# gearbox
 summary(mydata$gearbox)
-mydata = mydata[!(is.na(mydata$gearbox) | mydata$gearbox==""), ]
+mydata$gearbox = sub("^$","Unknown",mydata$gearbox)
+mydata$gearbox = as.factor(mydata$gearbox)
+plot(mydata$gearbox)
 
+# fuelType
 summary(mydata$fuelType)
-mydata = mydata[!(is.na(mydata$fuelType) | mydata$fuelType==""), ]
+mydata$fuelType = sub("^$","None",mydata$fuelType)
+mydata$fuelType = as.factor(mydata$fuelType)
+plot(mydata$fuelType)
 
-summary(mydata$offerType)
-mydata = mydata[!(is.na(mydata$offerType) | mydata$offerType==""), ]
-
+# model
 summary(mydata$model)
-mydata = mydata[!(is.na(mydata$model) | mydata$model==""), ]
+plot(mydata$model)
 
+# brand
 summary(mydata$brand)
-table(mydata$vehicleType,mydata$brand)
 
-# need to clean the dataset and convert the date format 
-summary(mydata$monthOfRegistration)
-mydata$monthOfRegistration=as.numeric(mydata$monthOfRegistration)
-mydata = subset(mydata,monthOfRegistration>=1 & monthOfRegistration<= 12)
-
-
-# mydata$dateCrawled <- ymd(mydata$dateCrawled) 
-# mydata$dateCreated <- ymd_hms(mydata$dateCreated)
-# mydata$lastSeen <- ymd_hms(mydata$lastSeen)
-
+# adding two date-related variables: used car's age and selling time(not sure)
 # look at several simple plots to check if there is any relationship between variables 
-plot(mydata$vehicleType)
-hist(mydata$powerPS)
+ggplot(mydata, aes(x=vehicleType)) + 
+  geom_bar(fill= 'blue', color='black') +
+  labs(x= 'Vehicle Type', y= 'number of cars') +
+  ggtitle('Vehicle Type Frequency Diagram')
 
-plot(mydata$price~mydata$kilometer)
-plot(mydata$price~mydata$powerPS)
+ggplot(mydata, aes(x=gearbox)) + 
+  geom_bar(fill= 'darkgreen', color='black') +
+  labs(x= 'gearbox type', y= 'number of cars') +
+  ggtitle('Gearbox Type Frequency Diagram')
+
+ggplot(mydata, aes(x=powerPS)) + 
+  geom_histogram(fill= 'orange', color='black', binwidth=20) +
+  labs(x= 'engine power', y= 'number of cars') +
+  ggtitle('engine power Frequency Diagram')
+
+ggplot(mydata, aes(x=price)) + 
+  geom_bar(fill= 'orange', color='black') +
+  labs(x= 'price', y= 'number of cars') +
+  ggtitle('price Frequency Diagram')
+
+ggplot(mydata, aes(x=kilometer)) + 
+  geom_bar(fill= 'purple', color='black') +
+  labs(x= 'kilometer', y= 'number of cars') +
+  ggtitle('kilometer Frequency Diagram')
+
+# from the graphs of engine power and price, we can find that extreme outliers are affecting our analysis of the variables. Therefore, we have to remove them.
+mydata <- subset(mydata, price < quantile(mydata$price, 0.95))
+mydata <- subset(mydata, powerPS < quantile(mydata$powerPS, 0.95))
+# it is also reasonable to believe that neither price nor engine power should have 0 values.
+mydata <- subset(mydata, price >0)
+mydata <- subset(mydata, powerPS >0)
+
+# reproduce the graphs
 
 # engine power vs price
 ggplot(data = subset(mydata, !is.na(powerPS)), aes(x = powerPS, y = price)) +
-  geom_point(alpha = 1/50, color = I("#990000"), position = 'jitter') +
+  geom_point(alpha = 0.02, color = I("red"), position = 'jitter') +
   geom_smooth() +
   facet_wrap(~vehicleType) +
   xlab('Engine Power') +
@@ -92,10 +120,10 @@ ggplot(data = subset(mydata, !is.na(powerPS)), aes(x = powerPS, y = price)) +
 
 # kilometer vs price 
 ggplot(data = subset(mydata, !is.na(kilometer)), aes(x = kilometer, y = price)) +
-  geom_point(alpha = 1/50, color = I("#990000"), position = 'jitter') +
+  geom_point(alpha = 0.02, color = I("red"), position = 'jitter') +
   geom_smooth() +
   facet_wrap(~vehicleType) +
-  xlab('Engine Power') +
+  xlab('Kilometer') +
   ylab('Price') +
   ggtitle('Kilometer vs. Price')
 
