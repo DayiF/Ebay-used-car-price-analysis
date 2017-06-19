@@ -1,0 +1,476 @@
+---
+title: "Ebay used car ads"
+author: "DayiFang"
+date: "February 26, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+### Read in data and understand it 
+
+The first step of data analysis is to read our dataset into selected programing language and have an overall understanding of it.
+
+```{r read & overall check of the data}
+# read in data, change file name or location for different cases
+mydata <- read.csv("C:/Users/dayif/Desktop/lets do it/New Projects/Used Auto Ads Data - Ebay .csv", header=TRUE) 
+# use dim to check how large is our data
+dim(mydata)
+# use sty to get further information 
+str(mydata)
+```
+The dim() command returns number of rows and columns of our dataset. It contains 371539 different pieces of information and 20 variables, fairly large. The str() command helps us get a basic understanding of the variables: type, number, and several examples. 
+
+### Eliminating useless variables
+
+In real world data analysis, a data set sometimes includes redundant variables that are not contributing to our analysis. In "Ebay used auto ads" data set, variable "name", "seller", "offerType", "abtest", and "nrofPictures" are either uninfluencial or ambiguous. Therefore, we throw them out from analysis
+
+```{r eliminating variables}
+# throw out unnecessary variables, mostly determined by general knowledge and real-world experience
+myvars <- names(mydata) %in% c("name", "seller", "offerType", "abtest", "nrOfPictures") 
+mydata = mydata[!myvars]
+```
+Now, we have 15 contributing variables to work on. However, we have to be carful when eliminating variables, since some of them may have potential effects on our models.
+
+### Clean dataset according to date values
+
+I would like to start cleaning our data set from the strictest standards, which are the unbreakable nature rules. In our case, I remove all the rows do not have monthofregistration value in [1,12] range. What is more, I also remove all rows with yearofRegistration value greater than 2017 or less than 1960 (not sure if doing this is correct).
+
+```{r cleaning data set according to time values}
+library(ggplot2)
+# clean the data from the strictest standard, such as the month of registration can not be any value except 1-12...
+# convert factor type to numeric type
+mydata$monthOfRegistration=as.numeric(as.character(mydata$monthOfRegistration))
+mydata = subset(mydata,monthOfRegistration>=1 & monthOfRegistration<= 12)
+summary(mydata$monthOfRegistration)
+# year of registration, use boxplot to analyze variable distribution, it is reasonable to eliminate any value less than 1960 and greater than 2017
+mydata$yearOfRegistration = as.numeric(as.character(mydata$yearOfRegistration))
+summary(mydata$yearOfRegistration)
+
+ggplot(aes(x=vehicleType, y=yearOfRegistration), data = mydata) + 
+  geom_boxplot() +
+  ylim(1975, 2017) +
+  labs(x= 'vehicle type', y= 'year of registration') +
+  ggtitle('year of registration vs vehicle type boxplot')
+
+mydata = subset(mydata, yearOfRegistration >= 1960 & yearOfRegistration <= 2017)
+summary(mydata$yearOfRegistration)
+```
+It is noticeable that we need to convert variable type from factor to numeric before cleaning the data. The boxplot of yearofRegistration range from 1975 to 2017 shows us the 1st and 3rd quantile year range according to different vehicle type (\textcolor{red}{the first column indicates missing vehicleType name, which we will address shortly}). Based on the boxplot, it is reasonable for us to thorw out year values less than 1960 as outliers (I still not sure whether we should do this or not).
+
+### Clean all categorical variables 
+
+From last part, we found that there are "blank"s in "vehicleType" variable. This also happens within other variables and may cause problems. Unlike continous variable, categorical variables cannot be imputed through certain methods. I just tag those blank's as "unknown" or "None" in each variable.
+
+```{r clean categorical data}
+# take a look at main categorical variables and rename blank cell to "None" type
+summary(mydata$vehicleType)
+mydata$vehicleType = sub("^$","None",mydata$vehicleType)
+mydata$vehicleType = as.factor(mydata$vehicleType)
+summary(mydata$vehicleType)
+
+ggplot(mydata, aes(x=vehicleType)) + 
+  geom_bar(fill= 'blue', color='black') +
+  labs(x= 'vehicle type', y= 'number of cars') +
+  ggtitle('vehicle type Frequency Diagram')
+
+# mydata = mydata[!(is.na(mydata$vehicleType) | mydata$vehicleType==""), ] another way to clean na's and blank's
+
+# gearbox
+mydata$gearbox = sub("^$","Unknown",mydata$gearbox)
+mydata$gearbox = as.factor(mydata$gearbox)
+summary(mydata$gearbox)
+
+ggplot(mydata, aes(x=gearbox)) + 
+  geom_bar(fill= 'darkgreen', color='black') +
+  labs(x= 'gearbox', y= 'number of cars') +
+  ggtitle('gearbox Frequency Diagram')
+
+# fuelType
+mydata$fuelType = sub("^$","Unknown",mydata$fuelType)
+mydata$fuelType = as.factor(mydata$fuelType)
+summary(mydata$fuelType)
+
+ggplot(mydata, aes(x=fuelType)) + 
+  geom_bar(fill= 'red', color='black') +
+  labs(x= 'fuel type', y= 'number of cars') +
+  ggtitle('fuel type Frequency Diagram')
+
+# model
+summary(mydata$model)
+
+ggplot(mydata, aes(x=model)) + 
+  geom_bar(fill= 'yellow', color='black') +
+  labs(x= 'model', y= 'number of cars') +
+  ggtitle('model Frequency Diagram')
+
+# brand
+summary(mydata$brand)
+
+ggplot(mydata, aes(x=brand)) + 
+  geom_bar(fill= 'orange', color='black') +
+  labs(x= 'brand', y= 'number of cars') +
+  ggtitle('brand Frequency Diagram')
+
+# notRepairedDamage
+mydata$notRepairedDamage = sub("^$","Unknown",mydata$notRepairedDamage)
+mydata$notRepairedDamage = sub("Unknown","No",mydata$notRepairedDamage)
+mydata$notRepairedDamage = sub("No","other",mydata$notRepairedDamage)
+mydata$notRepairedDamage = sub("ja","yes",mydata$notRepairedDamage)
+mydata$notRepairedDamage = sub("nein","Maybe",mydata$notRepairedDamage)
+mydata$notRepairedDamage = as.factor(mydata$notRepairedDamage)
+# I actually do not know what "ja" or "nein" mean, I googled them, they are actually "yes" and "maybe" in German. So I changed "unknown" to "other"
+summary(mydata$notRepairedDamage) 
+
+ggplot(mydata, aes(x=notRepairedDamage)) + 
+  geom_bar(fill= 'purple', color='black') +
+  labs(x= 'notRepairedDamage', y= 'number of cars') +
+  ggtitle('notRepairedDamage Frequency Diagram')
+
+```
+In this section, I checked all our categorical variables and replaced blank cells to either "Unknown" or "No" for different categories. From distribution graphs, we do not notice any unnormal patterns.\textcolor{red}{One question, should we just drop those blank cells instead of assigning values for them? They are actually making some noise later in our research}
+
+### Standardize date-related variables 
+
+Since we are given three date variables, we need to standardize them as one format to help construct time related analysis in the future.
+
+```{r standardize date-related variables}
+library(lubridate)
+# standardlize three date-related variables:
+mydata$dateCrawled = mdy_hm(mydata$dateCrawled)
+mydata$dateCreated = mdy_hm(mydata$dateCreated)
+mydata$lastSeen = mdy_hm(mydata$lastSeen)
+head(mydata$dateCrawled)
+```
+
+Now, we can use them to calculate/add time variable into analysis.
+
+### Adding age and selling time variables 
+
+Since we have the same format of time variables, we can use them to calculate our desired values.
+
+``` {r Adding age and selling time}
+# age is calculated by today's year minus year of registration, in number of years
+mydata$age = (year(today())-mydata$yearOfRegistration)
+summary(mydata$age)
+
+ggplot(mydata, aes(y=age, x=vehicleType)) + 
+  geom_boxplot()+
+  labs(x= 'vehicle type', y= 'age') +
+  ggtitle('age vs vehicle type boxplot')
+
+# selling time is calculated by lastseen minus datacreated, in number of days
+mydata$sellingTime <- as.integer(as.Date(mydata$lastSeen) - as.Date(mydata$dateCreated))
+summary(mydata$sellingTime)
+
+ggplot(mydata, aes(y=sellingTime, x=vehicleType)) + 
+  geom_boxplot()+
+  labs(x= 'vehicle type', y= 'selling time') +
+  ggtitle('selling time vs vehicle type boxplot')
+```
+
+It is reasonable to set age as the difference in years between today and the year of registration. However, \textcolor{red}{I am not sure that if the selling time is correctly calculated by my method.}
+
+### Take care of three continuous variables
+
+From the str() function, we can find that there are three continuous variables in our data set. They are "price", "powerPS", and "Kilometer". It is important to have them in our analysis as response and affecting variables. Let us take a look.
+
+``` {r continuous variables}
+# take a look at our main response variable price and remove na's
+summary(mydata$price) 
+options(scipen = 5,digits=4) # no scientific notation
+mydata = mydata[complete.cases(mydata$price),]
+summary(mydata$price) # there are some outliers, however we keep them and deal with them later
+
+ggplot(mydata, aes(x=price)) + 
+  geom_bar(fill= 'darkgreen', color='black') +
+  labs(x= 'price', y= 'number of cars') +
+  ggtitle('price Frequency Diagram')
+
+# convert powerPS from factor to numeric data, and we will deal with outliers later
+mydata$powerPS = as.numeric(as.character(mydata$powerPS))
+mydata = mydata[complete.cases(mydata$powerPS),]
+summary(mydata$powerPS)
+
+ggplot(mydata, aes(x=powerPS)) + 
+  geom_histogram(fill= 'orange', color='black', binwidth=20) +
+  labs(x= 'engine power', y= 'number of cars') +
+  ggtitle('engine power Frequency Diagram')
+
+# kilometer 
+summary(mydata$kilometer) # seems ok to use 
+
+ggplot(mydata, aes(x=kilometer)) + 
+  geom_bar(fill= 'purple', color='black') +
+  labs(x= 'kilometer', y= 'number of cars') +
+  ggtitle('kilometer Frequency Diagram')
+```
+
+Based on the graphs, we can find that both "price" and "powerPS" variables have extreme outliers that affect our univariate analysis. We need to remove those outliers in order to get a good overall picture of our data. For variable "kilometer", it is interesting to find that more than half of the used cars are assigned to 150,000 kilometer.
+
+``` {r clean outliers}
+# from the graphs of engine power and price, we can find that extreme outliers are affecting our analysis of the variables. Therefore, we have to remove them.
+mydata <- subset(mydata, price < quantile(mydata$price, 0.95))
+mydata <- subset(mydata, powerPS < quantile(mydata$powerPS, 0.95))
+# it is also reasonable to believe that neither price nor engine power should have 0 values.
+mydata <- subset(mydata, price >0)
+mydata <- subset(mydata, powerPS >0)
+
+```
+
+Now, we re-plot these two graphs.
+
+``` {r replot graphs}
+
+ggplot(mydata, aes(x=price)) + 
+  geom_bar(fill= 'darkgreen', color='black') +
+  labs(x= 'price', y= 'number of cars') +
+  ggtitle('price Frequency Diagram')
+
+ggplot(mydata, aes(x=powerPS)) + 
+  geom_histogram(fill= 'orange', color='black', binwidth=20) +
+  labs(x= 'engine power', y= 'number of cars') +
+  ggtitle('engine power Frequency Diagram')
+
+```
+
+### Bivariate analysis
+
+Before doing bivariate analysis, we need to target several important variables and mainly describe relationships between them. We are interested in price, engine power, kilometer, selling time, age, and vehicle type. let us make some plots and interpret them.
+
+``` {r power vs price}
+ggplot(data = mydata, aes(x = powerPS, y = price)) +
+  geom_point(alpha = 0.02, color = I("red"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('Engine Power') +
+  ylab('Price') +
+  ggtitle('Engine Power vs. Price')
+```
+
+These plots show clear linear relationship between engine power and price. However, we still need to consider the noise caused by outliers...
+``` {r kilometer vs price }
+ggplot(data = mydata, aes(x = kilometer, y = price)) +
+  geom_point(alpha = 0.02, color = I("red"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('Kilometer') +
+  ylab('Price') +
+  ggtitle('Kilometer vs. Price')
+```
+
+These plots give us an idea that used cars' prices are decreasing as their kilometer increase. However, there is an increasing pattern of used car price at the low kilometer range (0 - 50,000). It is hard to explain the exact reason for such pattern, but having fatal car damage on low kilometer used cars (force them to be sold at lower travel distance levels) might be a cause. What is more, outliers shoule also be considered as a distrubing reason here.
+
+```{r kilometer vs price by not repaired damage}
+ggplot(data = mydata, aes(x = kilometer, y = price)) +
+  geom_point(alpha = 0.02, color = I("green"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~notRepairedDamage) +
+  xlab('Kilometer') +
+  ylab('Price') +
+  ggtitle('Kilometer vs. Price')
+
+```
+
+These graphs only inform us that not repaired damage affect used cars' prices, but do not explain the sharp increasing price pattern for low kilometer used cars. Let us take a look at kilometer square then.
+
+```{r kilometer square vs price}
+mydata$kilo2 = (mydata$kilometer ^ 2)
+summary(mydata$kilo2)
+
+ggplot(data = mydata, aes(x = kilo2, y = price)) +
+  geom_point(alpha = 0.02, color = I("green"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~notRepairedDamage) +
+  xlab('Kilometer square') +
+  ylab('Price') +
+  ggtitle('Kilometer square vs. Price')
+```
+
+There is no better pattern shown by kilometer square vs price graphs. We do not need to include kilo square into our model.
+
+``` {r vehicle type vs price}
+ggplot(mydata,aes(x=vehicleType, y=price)) +
+  geom_boxplot(aes(fill = vehicleType)) +
+  stat_summary(fun.y = mean, geom="point", size=3) +
+  xlab('Vehicle Type') +
+  ylab('Price') +
+  ggtitle('Price vs. Vehicle Type')
+```
+
+This graph exhibits that the suv type used car has a significant higher price than other car types, while andere, kleinwagen, and none (other) types of cars have compartively lower price range. It it reasonable to believe that certain car types have higher prices than other. Therefore, we should include vehicle type as a main factor in our regression model. 
+
+``` {r vehicle type vs price by gearbox}
+    ggplot(mydata,aes(x=vehicleType, y=price)) +
+  geom_boxplot(aes(fill = gearbox)) +
+  xlab('Vehicle Type') +
+  ylab('Price') +
+  ggtitle('Price vs. Vehicle Type by gearbox')
+summary(mydata$gearbox)
+```
+
+This graph tells us that gearbox is also affecting used cars' prices. It is not hard to understand that auto cars are more expensive than manual ones.
+
+``` {r selling time vs price}
+ggplot(data = mydata, aes(x = sellingTime, y = price)) +
+  geom_point(alpha = 0.02, color = I("red"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('selling time') +
+  ylab('Price') +
+  ggtitle('Selling time vs. Price')
+```
+
+we can not conclue much from these graphs, since selling time outliers are greatly affecting our models. If we only look at data records within 95% quantile, we may find someting useful.
+
+``` {r replot selling time vs price}
+quantile(mydata$sellingTime, 0.95)
+selltime0.95_data = subset(mydata, sellingTime < quantile(mydata$sellingTime, 0.95))
+
+ggplot(data = selltime0.95_data, aes(x = sellingTime, y = price)) +
+  geom_point(alpha = 0.02, color = I("red"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('selling time') +
+  ylab('Price') +
+  ggtitle('Selling time (0.95 quantile) vs. Price')
+```
+
+From these plot, we can find that selling time do not have significant influence on used cars' prices. However, it is noticable that cars sold within short amount of time usually have lower prices compare to others. We will add selling time into our model and check if their are influencial.
+
+``` {r car age vs price}
+ggplot(data = mydata, aes(x = age, y = price)) +
+  geom_point(alpha = 0.02, color = I("orange"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('age') +
+  ylab('Price') +
+  ggtitle('car age vs. Price')
+```
+
+It is interesting to find that there are two common patterns shared by these plots (except none type, it actually causing some noise). Used car prices are decreasing within car age range (1-20), and then showing an increasing price pattern for age range (20-40). Since these graphs show such clear patterns between age and price, we should take a deeper look and dig more about the age variable. A quadratic term "age^2" is introduced below.
+
+```{r age^2 vs price}
+mydata$age2 = (mydata$age ^ 2)
+summary(mydata$age2)
+
+ggplot(data = mydata, aes(x = age2, y = price)) +
+  geom_point(alpha = 0.02, color = I("darkgreen"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('age square') +
+  ylab('Price') +
+  ggtitle('car age square vs. Price')
+
+```
+
+Age square actually gives us beautiful pattern vs used car price. Let us narrow down the age square and take another look.
+
+``` {r age2 vs price replot}
+quantile(mydata$age2, 0.95)
+age20.95_data = subset(mydata, age2 < quantile(mydata$age2, 0.95))
+
+ggplot(data = age20.95_data, aes(x = age2, y = price)) +
+  geom_point(alpha = 0.02, color = I("darkgreen"), position = 'jitter') +
+  geom_smooth() +
+  facet_wrap(~vehicleType) +
+  xlab('age square') +
+  ylab('Price') +
+  ggtitle('car age square (0.95) vs. Price')
+```
+
+From these graphs, we can clearly find the decreasing quadratic pattern between age square and price. We will add age square into our model and keep the outliers for future analysis.
+
+### Variable selection
+``` {r model variables}
+names(mydata)
+```
+
+Before constructing models, I would like to use most of the variables I have analyzed above. Continuous variables: price, powerPS, Kilometer,selling time, age, and age2. Categorical variables: vehicleType, gearbox, model, fuelType, brand, and notRepairedDamge. Special variable: postalCode. we may introduce more variables as our analysis moving forward.
+
+```{r linear model set up dummies}
+library(MASS)
+summary(mydata$vehicleType)
+summary(mydata$gearbox) # only use "automatik" and "mauel" 
+summary(mydata$model) # we are not going to use model dummies, since there are too many variables in this category
+summary(mydata$fuelType) # we are only about to use "benzin" and "diesel"
+
+mydata$bus <- ifelse(mydata$vehicleType=="bus",1,0)
+mydata$cabrio <- ifelse(mydata$vehicleType=="cabrio",1,0)
+mydata$coupe <- ifelse(mydata$vehicleType=="coupe",1,0)
+mydata$kleinwagen <- ifelse(mydata$vehicleType=="kleinwagen",1,0)
+mydata$kombi <- ifelse(mydata$vehicleType=="kombi",1,0)
+mydata$limousine <- ifelse(mydata$vehicleType=="limousine",1,0)
+mydata$suv <- ifelse(mydata$vehicleType=="suv",1,0)
+mydata$automatik <- ifelse(mydata$gearbox=="automatik",1,0)
+mydata$manuell <- ifelse(mydata$gearbox=="manuell",1,0)
+mydata$benzin <- ifelse(mydata$fuelType=="benzin",1,0)
+mydata$diesel <- ifelse(mydata$fuelType=="diesel",1,0)
+```
+
+In this first set up, we only use several most significant categorical variables and create dummies for them.
+
+```{r split training and testing data sets}
+names(mydata)
+
+set.seed(123) # randomly set 70% training data set and 30% testing data set
+subdata <- sample(nrow(mydata), floor(nrow(mydata)*0.7))
+training <- mydata[subdata,]
+validation <- mydata[-subdata,]
+```
+
+```{r fitting model}
+names(training)
+
+fit = lm(price ~ kilometer + age + age2 + powerPS+bus+cabrio+coupe+
+            kleinwagen+kombi+limousine+suv+
+            automatik+manuell+benzin+diesel, data=training)
+summary(fit)
+
+fit.step = stepAIC(fit) ## stepwise variable reducation by aic
+
+
+summary(teststep)
+
+library(car)
+
+vif(fit)
+
+## new model remove several variables with high correlation rates 
+newfit = lm(price ~ kilometer + age2 + powerPS + bus +cabrio + coupe + suv + automatik + benzin +diesel, data = training )
+summary(newfit)
+
+vif(newfit) ## less multicollinearity
+newfit.step = stepAIC(newfit)
+
+training$predict <- predict(newfit.step)
+training$error <- residuals((newfit.step))
+
+validation$predict <- predict(newfit.step, newdata = validation)
+validation$error <- validation$predict-validation$price
+validation$rate <- (abs(validation$error)<0.3*validation$price) ## create a indicator showing the predict error is within 30% of the original value
+summary(validation$rate) 
+length(validation$rate[validation$rate == TRUE])/length(validation$rate) ## only 33.8% predicted values are within the 0.3 range of the original value 
+  
+hist(training$error)
+hist(validation$error)
+
+ggplot(data =validation, aes(x=price, y=predict) )+
+  geom_point(alpha=0.2)+
+  geom_smooth()+
+  facet_wrap(~vehicleType)+
+  xlab('price') +
+  ylab('predicted') +
+  ggtitle('price vs predicted price')
+
+
+ggplot(data =validation, aes(x=price, y=error) )+
+  geom_point(alpha=0.2)+
+  geom_smooth()+
+  facet_wrap(~vehicleType)+
+  xlab('price') +
+  ylab('error') +
+  ggtitle('price vs predicted price error')
